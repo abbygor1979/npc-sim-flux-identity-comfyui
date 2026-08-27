@@ -25,8 +25,15 @@ RUN git clone --depth 1 https://github.com/XLabs-AI/x-flux-comfyui.git && \
 # PuLID-Flux's `from insightface.app import FaceAnalysis` raised
 # ModuleNotFoundError despite `insightface` being listed in its
 # requirements.txt and this RUN step completing without error.
-RUN uv pip install --system -r x-flux-comfyui/requirements.txt && \
-    uv pip install --system -r ComfyUI-PuLID-Flux/requirements.txt
+#
+# --break-system-packages: the base image's Python is Debian's own,
+# PEP 668 EXTERNALLY-MANAGED — `--system` alone still refuses to touch it
+# (confirmed live: "Virtual environments were not considered due to the
+# `--system` flag" plus a hint pointing at pipx/venv). uv's own docs mark
+# this flag for exactly this case — CI/container images installing into an
+# externally-managed Python that will never be touched by apt again.
+RUN uv pip install --system --break-system-packages -r x-flux-comfyui/requirements.txt && \
+    uv pip install --system --break-system-packages -r ComfyUI-PuLID-Flux/requirements.txt
 
 # XLabs' own installer creates its models/xlabs/* folders and does a couple
 # of environment checks; run it the way the README documents rather than
