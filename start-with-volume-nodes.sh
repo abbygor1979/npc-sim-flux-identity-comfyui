@@ -32,6 +32,17 @@ else
   echo "start-with-volume-nodes.sh: missing /runpod-volume/models/insightface/antelopev2 (PuLID face analysis will fail, not the whole worker)" >&2
 fi
 
+# Belt-and-suspenders, 2026-08-27: an interactive Pod on this same image
+# confirmed PID 1's own environment already has /opt/venv/bin first in PATH
+# (baked in by the base image's own Dockerfile) and that importing
+# insightface works correctly once PATH is right — but the real RunPod
+# Serverless worker still failed with the exact same ModuleNotFoundError.
+# Whatever RunPod Serverless's own supervisor does differently from a plain
+# `docker run` of this image, force the venv explicitly here rather than
+# trust inherited PATH/VIRTUAL_ENV to survive it.
+export VIRTUAL_ENV=/opt/venv
+export PATH="/opt/venv/bin:$PATH"
+
 # Diagnostic, 2026-08-27: insightface installs cleanly into /opt/venv at
 # build time (confirmed in the build log) but PuLID-Flux still fails to
 # import it at container start — this checks what python/PATH actually look
