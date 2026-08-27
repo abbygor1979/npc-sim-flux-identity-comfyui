@@ -20,8 +20,13 @@ WORKDIR /comfyui/custom_nodes
 RUN git clone --depth 1 https://github.com/XLabs-AI/x-flux-comfyui.git && \
     git clone --depth 1 https://github.com/balazik/ComfyUI-PuLID-Flux.git
 
-RUN uv pip install -r x-flux-comfyui/requirements.txt && \
-    uv pip install -r ComfyUI-PuLID-Flux/requirements.txt
+# --system: without an active venv, `uv pip install` installs into an
+# isolated environment ComfyUI's own runtime never sees — found live when
+# PuLID-Flux's `from insightface.app import FaceAnalysis` raised
+# ModuleNotFoundError despite `insightface` being listed in its
+# requirements.txt and this RUN step completing without error.
+RUN uv pip install --system -r x-flux-comfyui/requirements.txt && \
+    uv pip install --system -r ComfyUI-PuLID-Flux/requirements.txt
 
 # XLabs' own installer creates its models/xlabs/* folders and does a couple
 # of environment checks; run it the way the README documents rather than
