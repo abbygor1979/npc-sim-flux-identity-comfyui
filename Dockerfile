@@ -21,15 +21,16 @@ RUN git clone --depth 1 https://github.com/XLabs-AI/x-flux-comfyui.git && \
     git clone --depth 1 https://github.com/balazik/ComfyUI-PuLID-Flux.git
 
 # balazik/ComfyUI-PuLID-Flux is unmaintained and monkey-patches Flux's
-# forward_orig() with a fixed signature. ComfyUI core added a
-# timestep_zero_index kwarg to forward_orig() for Kontext reference-image
-# support (comfyanonymous/ComfyUI, see issues #13021/#13107/#13136), which
-# breaks every old PuLID-Flux fork the same way: "forward_orig() got an
-# unexpected keyword argument 'timestep_zero_index'" at sample time.
-# Confirmed live on this exact endpoint/image. Fix (per those upstream
-# issues): accept and ignore the extra kwarg — it's only meaningful for
-# Kontext, always None in a PuLID-only workflow.
-RUN sed -i '/^    control=None,$/a\    timestep_zero_index=None,' ComfyUI-PuLID-Flux/pulidflux.py
+# forward_orig() with a fixed signature. ComfyUI core has since added new
+# kwargs to its own forward_orig() (timestep_zero_index for Kontext,
+# transformer_options, and potentially more over time — see
+# comfyanonymous/ComfyUI issues #13021/#13107/#13136) that this patched
+# copy doesn't accept, breaking every old PuLID-Flux fork the same way:
+# "forward_orig() got an unexpected keyword argument '...'" at sample
+# time. Confirmed live on this exact endpoint/image for two different
+# kwargs in a row. Fix: a catch-all **kwargs instead of naming each one,
+# so any future ComfyUI-added parameter is silently absorbed too.
+RUN sed -i '/^    control=None,$/a\    **kwargs,' ComfyUI-PuLID-Flux/pulidflux.py
 
 # The base image (runpod-workers/worker-comfyui) creates a venv at
 # /opt/venv and puts it on PATH — but never sets VIRTUAL_ENV, which is what
