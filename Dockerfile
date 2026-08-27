@@ -20,25 +20,23 @@ WORKDIR /comfyui/custom_nodes
 RUN git clone --depth 1 https://github.com/XLabs-AI/x-flux-comfyui.git && \
     git clone --depth 1 https://github.com/balazik/ComfyUI-PuLID-Flux.git
 
-# --system: without an active venv, `uv pip install` installs into an
-# isolated environment ComfyUI's own runtime never sees — found live when
-# PuLID-Flux's `from insightface.app import FaceAnalysis` raised
-# ModuleNotFoundError despite `insightface` being listed in its
-# requirements.txt and this RUN step completing without error.
-#
-# --break-system-packages: the base image's Python is Debian's own,
-# PEP 668 EXTERNALLY-MANAGED — `--system` alone still refuses to touch it
-# (confirmed live: "Virtual environments were not considered due to the
-# `--system` flag" plus a hint pointing at pipx/venv). uv's own docs mark
-# this flag for exactly this case — CI/container images installing into an
-# externally-managed Python that will never be touched by apt again.
-RUN uv pip install --system --break-system-packages -r x-flux-comfyui/requirements.txt && \
-    uv pip install --system --break-system-packages -r ComfyUI-PuLID-Flux/requirements.txt
+# The base image (runpod-workers/worker-comfyui) creates a venv at
+# /opt/venv and puts it on PATH — but never sets VIRTUAL_ENV, which is what
+# `uv pip install`'s own active-venv detection actually keys on. Without an
+# explicit target, `uv` doesn't recognise /opt/venv as active and installs
+# into some other environment ComfyUI's own runtime (started via
+# /opt/venv's python, per that image's own start.sh) never sees — confirmed
+# live twice: once with no flags (isightface not found), once again with
+# --system --break-system-packages (targets the OS's system Python instead
+# of /opt/venv — same wrong destination, different one). `--python` names
+# the interpreter directly and removes the ambiguity entirely.
+RUN uv pip install --python /opt/venv/bin/python -r x-flux-comfyui/requirements.txt && \
+    uv pip install --python /opt/venv/bin/python -r ComfyUI-PuLID-Flux/requirements.txt
 
 # XLabs' own installer creates its models/xlabs/* folders and does a couple
 # of environment checks; run it the way the README documents rather than
 # only relying on the package import succeeding.
-RUN cd x-flux-comfyui && python setup.py
+RUN cd x-flux-comfyui && /opt/venv/bin/python setup.py
 
 WORKDIR /comfyui
 
