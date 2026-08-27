@@ -32,4 +32,14 @@ else
   echo "start-with-volume-nodes.sh: missing /runpod-volume/models/insightface/antelopev2 (PuLID face analysis will fail, not the whole worker)" >&2
 fi
 
+# Diagnostic, 2026-08-27: insightface installs cleanly into /opt/venv at
+# build time (confirmed in the build log) but PuLID-Flux still fails to
+# import it at container start — this checks what python/PATH actually look
+# like in the running container itself, not at build time, to find out why.
+echo "start-with-volume-nodes.sh: PATH=$PATH" >&2
+echo "start-with-volume-nodes.sh: which python -> $(which python)" >&2
+python -c "import sys; print('start-with-volume-nodes.sh: sys.executable ->', sys.executable, file=sys.stderr)" || true
+python -c "import insightface; print('start-with-volume-nodes.sh: insightface OK ->', insightface.__file__, file=sys.stderr)" \
+  || echo "start-with-volume-nodes.sh: insightface import FAILED under $(which python)" >&2
+
 exec /start.sh
