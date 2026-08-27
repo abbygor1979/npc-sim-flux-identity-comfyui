@@ -51,6 +51,15 @@ echo "start-with-volume-nodes.sh: PATH=$PATH" >&2
 echo "start-with-volume-nodes.sh: which python -> $(which python)" >&2
 python -c "import sys; print('start-with-volume-nodes.sh: sys.executable ->', sys.executable, file=sys.stderr)" || true
 python -c "import insightface; print('start-with-volume-nodes.sh: insightface OK ->', insightface.__file__, file=sys.stderr)" \
-  || echo "start-with-volume-nodes.sh: insightface import FAILED under $(which python)" >&2
+  || true
+if ! python -c "import insightface" 2>/dev/null; then
+  echo "start-with-volume-nodes.sh: insightface import FAILED under $(which python)" >&2
+  echo "start-with-volume-nodes.sh: sys.path ->" >&2
+  (python -c "import sys; [print('  ', p) for p in sys.path]" >&2) || true
+  echo "start-with-volume-nodes.sh: ls /opt/venv/lib/python3.12/site-packages | grep -i insight ->" >&2
+  (ls /opt/venv/lib/python3.12/site-packages 2>&1 | grep -i insight >&2) || echo "  (nothing found)" >&2
+  echo "start-with-volume-nodes.sh: pip show insightface (via /opt/venv/bin/python) ->" >&2
+  (/opt/venv/bin/python -m pip show insightface >&2 2>&1) || echo "  pip show failed" >&2
+fi
 
 exec /start.sh
