@@ -32,6 +32,23 @@ RUN git clone --depth 1 https://github.com/XLabs-AI/x-flux-comfyui.git && \
 # so any future ComfyUI-added parameter is silently absorbed too.
 RUN sed -i '/^    control=None,$/a\    **kwargs,' ComfyUI-PuLID-Flux/pulidflux.py
 
+# XLabs-AI/x-flux-comfyui's own IP-Adapter has the identical class of bug,
+# in a different spot: ApplyFluxIPAdapter (via utils.py's CopyDSB/
+# FluxUpdateModules) replaces ComfyUI's native double_blocks with its own
+# xflux/src/flux/modules/layers.py::DoubleStreamBlock — whose forward() has
+# a fixed signature (img, txt, vec, pe) with no catch-all at all, not even
+# the partial one PuLID had. ComfyUI core's own forward_orig() now calls
+# every double block with an extra attn_mask kwarg this old signature was
+# never written to accept. Confirmed live on this exact endpoint/image:
+# "DoubleStreamBlock.forward() got an unexpected keyword argument
+# 'attn_mask'" at KSampler time, right after ApplyFluxIPAdapter successfully
+# loads and patches the model — same failure shape as the PuLID bug above,
+# same fix: absorb it with **kwargs rather than name it, so the next
+# ComfyUI-added parameter doesn't break this again. single_blocks are
+# untouched by this same patching path (CopyDSB only replaces
+# double_blocks), so no equivalent fix is needed there.
+RUN sed -i 's/def forward(self, img: Tensor, txt: Tensor, vec: Tensor, pe: Tensor) -> tuple\[Tensor, Tensor\]:/def forward(self, img: Tensor, txt: Tensor, vec: Tensor, pe: Tensor, **kwargs) -> tuple[Tensor, Tensor]:/' x-flux-comfyui/xflux/src/flux/modules/layers.py
+
 # The base image (runpod-workers/worker-comfyui) creates a venv at
 # /opt/venv and puts it on PATH — but never sets VIRTUAL_ENV, which is what
 # `uv pip install`'s own active-venv detection actually keys on. Without an
